@@ -32,7 +32,25 @@ AI FleetOps 是一个持续迭代的 Robotaxi 车队运营与 AI 辅助分析项
 
 \---
 
+## Project Screenshots
 
+### Dashboard / 运营总览
+
+![Dashboard](docs/screenshots/01-dashboard.png)
+
+### Fleet Management / 车队管理
+
+![Fleet Management](docs/screenshots/02-fleet-management.png)
+
+### Incident Center / 异常中心
+
+![Incident Center](docs/screenshots/03-incident-center.png)
+
+### Work Order Center / 工单中心
+
+![Work Order Center](docs/screenshots/04-work-order-center.png)
+
+---
 
 \## Core Features
 
