@@ -93,16 +93,10 @@ const INCIDENT_STATUS_TYPE = {
 }
 
 
-const SUGGESTED_ACTION_LABEL = {
-  NO_ACTION: '无需动作',
-  STOP_DISPATCH: '暂停派单',
-  KEEP_MAINTENANCE: '保持维修状态',
-  SEND_TO_CHARGE: '前往充电',
-  RETURN_TO_STATION: '返场',
-  CREATE_CAMERA_INSPECTION_WORK_ORDER: '创建摄像头检修工单',
-  CREATE_LIDAR_INSPECTION_WORK_ORDER: '创建激光雷达检修工单',
-  CREATE_SOFTWARE_CHECK_WORK_ORDER: '创建软件检查工单',
-  CREATE_GENERAL_INSPECTION_WORK_ORDER: '创建常规检查工单'
+const SUGGESTION_TYPE_LABEL = {
+  CREATE_WORK_ORDER: '创建工单',
+  UPDATE_INCIDENT_STATUS: '更新异常状态',
+  UPDATE_VEHICLE_STATUS: '更新车辆状态'
 }
 
 const WORK_ORDER_STATUS_LABEL = {
@@ -165,7 +159,7 @@ export const severityType = (s) => pick(SEVERITY_TYPE, s) || 'info'
 export const incidentStatusLabel = (s) => pick(INCIDENT_STATUS_LABEL, s)
 export const incidentStatusType = (s) => pick(INCIDENT_STATUS_TYPE, s) || 'info'
 
-export const suggestedActionLabel = (s) => pick(SUGGESTED_ACTION_LABEL, s)
+export const suggestionTypeLabel = (s) => pick(SUGGESTION_TYPE_LABEL, s)
 
 export const workOrderStatusLabel = (s) => pick(WORK_ORDER_STATUS_LABEL, s)
 export const workOrderStatusType = (s) => pick(WORK_ORDER_STATUS_TYPE, s) || 'info'

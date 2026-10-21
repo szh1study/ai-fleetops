@@ -31,10 +31,15 @@ public class SpringAiModelProvider implements AiModelProvider {
             2. summary 用简洁中文概括异常及运营影响。
             3. possibleCauses 给出基于现有信息的可能原因；不确定时明确使用“可能”。
             4. recommendations 给出可执行但不自动执行的人工处置建议。
-            5. suggestedActions 只能从系统定义的枚举中选择，可返回多个。
+            5. suggestedActions 每个元素必须包含 type、payload、reason 三个字段：
+               - type 只能是 CREATE_WORK_ORDER、UPDATE_INCIDENT_STATUS、UPDATE_VEHICLE_STATUS 之一。
+               - CREATE_WORK_ORDER 的 payload.workOrderType 只能是 CAMERA_INSPECTION、LIDAR_INSPECTION、CHARGING、SOFTWARE_CHECK、GENERAL_INSPECTION 之一；payload.description 必须基于给定的车辆/设备状态生成，不得虚构。
+               - UPDATE_INCIDENT_STATUS 的 payload.status 只能是 OPEN、ANALYZING、PENDING_APPROVAL、PROCESSING、RESOLVED、REJECTED 之一。
+               - UPDATE_VEHICLE_STATUS 的 payload.status 只能是 READY、OPERATING、IDLE、CHARGING、TO_CHARGE、RETURNING、MAINTENANCE、OFFLINE 之一。
+               - reason 必须说明为什么给出这个建议，依据来自输入信息。
             6. confidence 必须在 0 到 1 之间。
-            7. V0.2 尚未启用 RAG，sopReferences 返回空列表。
-            8. 任何建议动作都只是 Copilot 建议，不得声称系统已经执行。
+            7. V0.3 尚未启用 RAG，sopReferences 返回空列表。
+            8. 任何建议动作都只是 Copilot 建议，系统不会自动执行，必须人工确认后才会执行。
             """;
 
     private final ChatClient chatClient;
@@ -144,6 +149,10 @@ public class SpringAiModelProvider implements AiModelProvider {
         }
         if (result.getSuggestedActions() == null) {
             result.setSuggestedActions(List.of());
+        } else {
+            result.setSuggestedActions(result.getSuggestedActions().stream()
+                    .filter(action -> action != null && action.getType() != null && action.getPayload() != null)
+                    .toList());
         }
         if (result.getSopReferences() == null) {
             result.setSopReferences(List.of());

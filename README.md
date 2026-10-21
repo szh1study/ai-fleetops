@@ -4,15 +4,16 @@
 
 我没有一开始就直接做 AI 功能，而是先在 V0.1 把车辆、异常事件、维修工单和运营看板等基础业务跑通，先建立一套可以继续扩展的数据和业务流程。
 
-目前 V0.1 已完成，正在开发 V0.2 AI Incident Copilot，尝试接入阿里云百炼 / Qwen API，为具体异常事件提供 AI 辅助分析。
+目前 V0.1、V0.2、V0.3 均已完成，后续版本规划见 [docs/roadmap.md](docs/roadmap.md)。
 
 ## 当前进度
 
 * V0.1：车队基础运营后台，已完成
-* V0.2：AI Incident Copilot，开发中
-* 后续：考虑继续加入 RAG、Tool Calling 和 Human-in-the-loop
+* V0.2：AI Incident Copilot，异常归因分析，已完成
+* V0.3：AI 建议操作 + Human-in-the-loop，已完成
+* V0.4 及以后：见 [docs/roadmap.md](docs/roadmap.md)
 
-目前仓库中的 AI 功能仍处于开发阶段，没有把后续规划功能当成已经实现的功能展示。
+目前仓库中已完成 V0.2 与 V0.3；后续版本规划见 [docs/roadmap.md](docs/roadmap.md)，没有把后续规划功能当成已经实现的功能展示。
 
 ---
 
@@ -82,7 +83,7 @@ Vehicle READY
 * 后端：Java、Spring Boot、MyBatis-Plus、MySQL
 * 前端：Vue 3、Vite、Axios、Element Plus、ECharts
 * 接口：REST API
-* AI：正在尝试接入阿里云百炼 / Qwen API
+* AI：Spring AI + 阿里云百炼 / Qwen API
 
 目前基础结构大致是：
 
@@ -100,7 +101,7 @@ Mapper
 MySQL
 ```
 
-V0.2 目前在增加：
+V0.2 新增的 AI 调用链路：
 
 ```text
 Incident / Vehicle 数据
@@ -154,7 +155,7 @@ Camera = OFFLINE
 
 ## V0.2：AI Incident Copilot
 
-V0.2 目前还在开发。
+V0.2 已完成。
 
 现阶段主要想做的是：选择一个具体 Incident 后，把这个异常事件以及相关 Vehicle 信息作为上下文提供给模型，让 AI 针对这次异常给出辅助分析。
 
@@ -174,9 +175,41 @@ V0.2 目前还在开发。
 前端 AI 窗口展示
 ```
 
-现在正在处理模型 Provider 和阿里云百炼 / Qwen API 接入。
+模型 Provider 与阿里云百炼 / Qwen API 已接入并跑通。
 
-这一阶段暂时不会直接做复杂 Agent，准备先把最基本的模型调用、业务上下文和异常处理跑通，再继续考虑 RAG 和 Tool Calling。
+这一阶段没有做复杂 Agent，已先把最基本的模型调用、业务上下文和异常处理跑通；RAG 与 Tool Calling 留待后续版本。
+
+---
+
+## V0.3：AI 建议操作 + Human-in-the-loop
+
+V0.3 把 AI 从「单次分析顾问」升级为「能给建议、但关键动作必须人工确认才能执行」的 Copilot。
+
+相比 V0.2 的「选中异常 → 弹窗看结论」，V0.3 增加了：
+
+* AI 分析后返回**可执行的操作建议**（type + payload + reason）
+* 前端以**操作卡片**展示，带「确认执行 / 忽略」按钮
+* 确认后调用现有业务接口真正执行（创建工单、更新异常/车辆状态）
+* **全程不自动执行**：关键动作必须人工点确认
+* 每条建议的采纳 / 拒绝都落库，为后续复盘留数据
+
+最小链路：
+
+```text
+选中 Incident → AI 分析
+        ↓
+返回操作建议（落库 PENDING）
+        ↓
+操作卡片 + 确认表单
+        ↓
+人工确认 → 执行器调用现有接口
+        ↓
+EXECUTED / REJECTED
+```
+
+V0.3 新增的 `ai_suggestions` 表需要手动建表，见 [docs/sql/v0.3_ai_suggestions.sql](docs/sql/v0.3_ai_suggestions.sql)。
+
+V0.3 刻意没做：多轮对话、RAG / SOP 知识库、用户系统，以及需要模型中途查数据的真正 Tool Calling（如查询车辆实时状态）。这些按路线图放到 V0.4 及以后。
 
 ---
 
@@ -250,21 +283,17 @@ http://localhost:5173
 
 ---
 
-## 后续计划
+## 版本路线图
 
-目前优先把 V0.2 做完整：
+项目按「先让 AI 能看，再让 AI 能说，再让 AI 能动，最后让 AI 能预判和复盘」的节奏迭代，每个版本只聚焦一个能力跃迁：
 
-* 跑通模型 API
-* 将 Incident / Vehicle 数据作为分析上下文
-* 完善模型调用异常处理
-* 完善 AI 服务不可用时的降级逻辑
+* V0.1：车队基础运营后台（已完成）
+* V0.2：AI Incident Copilot，异常归因分析（已完成）
+* V0.3：AI 建议操作 + Human-in-the-loop，让 AI 能执行简单动作（已完成）
+* V0.4：接入外部数据，主动预测需求与车辆分布
+* V0.5：预测复盘与优化闭环
+* V0.6 及以后：多角色、多 Agent、可视化调度
 
-在基础 AI Copilot 稳定以后，再考虑：
-
-* SOP / RAG
-* Tool Calling
-* Human-in-the-loop
-* 天气、地图等外部数据
-* 运营预测与复盘
+完整的版本目标、能力跃迁与业务价值，见 [docs/roadmap.md](docs/roadmap.md)。
 
 项目会继续按版本迭代，有新的功能和问题会继续记录。

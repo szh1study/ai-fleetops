@@ -1,7 +1,6 @@
 package com.aifleetops.ai.dto;
 
 import com.aifleetops.ai.enums.RiskLevel;
-import com.aifleetops.ai.enums.SuggestedAction;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -33,7 +32,7 @@ public class IncidentAnalysisResult implements Serializable {
     private List<String> recommendations;
 
     /** 建议执行的业务动作列表（可能多个） */
-    private List<SuggestedAction> suggestedActions;
+    private List<AiSuggestedAction> suggestedActions;
 
     /** 模型置信度（0~1） */
     private Double confidence;

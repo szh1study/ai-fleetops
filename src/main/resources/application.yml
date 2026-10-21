@@ -7,12 +7,17 @@ spring:
   application:
     name: ai-fleetops
 
-  # V0.2 当前默认关闭所有 Spring AI 模型自动配置。
-  # 这样即使没有 API Key，V0.1 的 FleetOps 主业务也可以正常启动。
-  # 真正接入 Qwen / DeepSeek 时，再将 chat 改为 openai，并配置兼容接口地址与 API Key。
+  # V0.2 接入百炼 Qwen：通过 OpenAI 兼容模式调用模型。
+  # API Key 与 Base URL 从环境变量 / .env 文件读取，避免写入代码仓库。
   ai:
+    openai:
+      api-key: ${BAILIAN_API_KEY:}
+      base-url: ${BAILIAN_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode}
+      chat:
+        options:
+          model: ${BAILIAN_MODEL:qwen-plus}
     model:
-      chat: none
+      chat: openai
       embedding: none
       image: none
       moderation: none
@@ -46,5 +51,5 @@ ai:
   model:
     # false：使用 NoopAiModelProvider，AI 不可用但 FleetOps 主业务正常运行。
     # true：使用 SpringAiModelProvider；同时必须开启 spring.ai.model.chat 并配置真实模型连接信息。
-    enabled: false
+    enabled: true
     provider: qwen

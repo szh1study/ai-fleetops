@@ -4,6 +4,7 @@ import com.aifleetops.ai.dto.IncidentAiAnalysisResponse;
 import com.aifleetops.ai.dto.IncidentAnalysisRequest;
 import com.aifleetops.ai.dto.IncidentAnalysisResult;
 import com.aifleetops.ai.provider.AiModelProvider;
+import com.aifleetops.ai.service.AiSuggestionService;
 import com.aifleetops.ai.service.IncidentAiAnalysisService;
 import com.aifleetops.entity.Incident;
 import com.aifleetops.entity.Vehicle;
@@ -28,6 +29,7 @@ public class IncidentAiAnalysisServiceImpl implements IncidentAiAnalysisService 
     private final IncidentService incidentService;
     private final VehicleService vehicleService;
     private final AiModelProvider aiModelProvider;
+    private final AiSuggestionService aiSuggestionService;
 
     @Override
     public IncidentAiAnalysisResponse analyze(Long incidentId) {
@@ -53,6 +55,7 @@ public class IncidentAiAnalysisServiceImpl implements IncidentAiAnalysisService 
 
         try {
             IncidentAnalysisResult result = aiModelProvider.analyzeIncident(request);
+            aiSuggestionService.persistSuggestions(incidentId, result.getSuggestedActions());
             return IncidentAiAnalysisResponse.available(
                     incidentId,
                     aiModelProvider.getProviderName(),
