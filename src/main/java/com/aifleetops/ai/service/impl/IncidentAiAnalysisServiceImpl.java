@@ -55,7 +55,17 @@ public class IncidentAiAnalysisServiceImpl implements IncidentAiAnalysisService 
 
         try {
             IncidentAnalysisResult result = aiModelProvider.analyzeIncident(request);
-            aiSuggestionService.persistSuggestions(incidentId, result.getSuggestedActions());
+            try {
+                aiSuggestionService.persistSuggestions(incidentId, result.getSuggestedActions());
+            } catch (RuntimeException pe) {
+                // 建议落库失败（如表未建、数据库连接异常）与模型调用失败分离，便于排查。
+                log.error("AI suggestions persistence failed. incidentId={}", incidentId, pe);
+                return IncidentAiAnalysisResponse.unavailable(
+                        incidentId,
+                        aiModelProvider.getProviderName(),
+                        "AI 建议保存失败，请检查数据库配置；FleetOps 主业务不受影响"
+                );
+            }
             return IncidentAiAnalysisResponse.available(
                     incidentId,
                     aiModelProvider.getProviderName(),
