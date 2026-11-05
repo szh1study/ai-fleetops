@@ -57,13 +57,35 @@
       </div>
       <el-empty v-else description="填写条件后点击「生成预测」" />
     </el-card>
+
+    <el-card shadow="never" class="result-card">
+      <template #header><span class="card-title">调度建议</span></template>
+      <div v-if="suggestions.length" class="suggestion-list">
+        <div v-for="s in suggestions" :key="s.id" class="suggestion-card">
+          <div class="suggestion-head">
+            <span class="suggestion-title">
+              从 <strong>{{ areaLabel(s.fromArea) }}</strong> 调
+              <strong>{{ s.vehicleCount }}</strong> 辆到
+              <strong>{{ areaLabel(s.toArea) }}</strong>
+            </span>
+            <el-tag :type="suggestionStatusType(s)" size="small" effect="plain">{{ suggestionStatusLabel(s) }}</el-tag>
+          </div>
+          <div class="suggestion-reason">{{ s.reason || '-' }}</div>
+          <div class="suggestion-actions">
+            <el-button type="primary" size="small" :disabled="s.status !== 'PENDING'" @click="handleConfirm(s)">确认执行</el-button>
+            <el-button size="small" :disabled="s.status !== 'PENDING'" @click="handleReject(s)">忽略</el-button>
+          </div>
+        </div>
+      </div>
+      <el-empty v-else description="当前供需平衡，无需调度" />
+    </el-card>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { generateForecast } from '../api/demandForecast'
+import { generateForecast, confirmDispatchSuggestion, rejectDispatchSuggestion } from '../api/demandForecast'
 import { areaLabel } from '../utils/statusMap'
 
 const TIME_RANGES = ['08:00-12:00', '12:00-17:00', '17:00-21:00', '20:00-24:00']
@@ -80,6 +102,7 @@ const generating = ref(false)
 const response = ref(null)
 
 const forecasts = computed(() => response.value?.forecasts || [])
+const suggestions = computed(() => response.value?.suggestions || [])
 
 function formatToday() {
   const d = new Date()
@@ -90,6 +113,36 @@ function formatToday() {
 
 function currentIdle(area) {
   return response.value?.currentIdleVehicles?.[area] ?? 0
+}
+
+function suggestionStatusLabel(s) {
+  const map = { PENDING: '待确认', EXECUTED: '已执行', REJECTED: '已忽略' }
+  return map[s.status] || s.status
+}
+
+function suggestionStatusType(s) {
+  const map = { PENDING: 'warning', EXECUTED: 'success', REJECTED: 'info' }
+  return map[s.status] || 'info'
+}
+
+async function handleConfirm(s) {
+  try {
+    await confirmDispatchSuggestion(s.id)
+    s.status = 'EXECUTED'
+    ElMessage.success('调度已执行')
+  } catch (e) {
+    // 错误提示由 request 拦截器统一处理
+  }
+}
+
+async function handleReject(s) {
+  try {
+    await rejectDispatchSuggestion(s.id)
+    s.status = 'REJECTED'
+    ElMessage.success('已忽略该建议')
+  } catch (e) {
+    // 错误提示由 request 拦截器统一处理
+  }
 }
 
 async function handleGenerate() {
@@ -161,5 +214,37 @@ async function handleGenerate() {
   font-size: 13px;
   color: #606266;
   line-height: 1.6;
+}
+.suggestion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.suggestion-card {
+  padding: 12px 14px;
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  background: #fafafa;
+}
+.suggestion-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.suggestion-title {
+  font-size: 14px;
+  color: #303133;
+}
+.suggestion-reason {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.6;
+}
+.suggestion-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
 }
 </style>

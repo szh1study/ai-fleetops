@@ -57,3 +57,4 @@ ai:
 # V0.4 需求预测 / 调度配置
 dispatch:
   historical-days: 3   # 历史订单聚合窗口天数（开发演示用；生产建议 30）
+  vehicle-capacity: 15  # 每辆可调度车在每个时段预计承载的订单数

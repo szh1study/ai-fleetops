@@ -5,9 +5,13 @@ import com.aifleetops.ai.dto.DemandForecastGenerateRequest;
 import com.aifleetops.ai.dto.DemandForecastRequest;
 import com.aifleetops.ai.dto.DemandForecastResponse;
 import com.aifleetops.ai.dto.DemandForecastResult;
+import com.aifleetops.ai.forecast.DispatchRuleEngine;
+import com.aifleetops.ai.forecast.DispatchRuleSuggestion;
 import com.aifleetops.ai.provider.AiModelProvider;
 import com.aifleetops.ai.service.DemandForecastService;
+import com.aifleetops.ai.service.DispatchSuggestionService;
 import com.aifleetops.entity.DailyForecast;
+import com.aifleetops.entity.DispatchSuggestion;
 import com.aifleetops.entity.Order;
 import com.aifleetops.entity.Vehicle;
 import com.aifleetops.exception.BusinessException;
@@ -41,10 +45,15 @@ public class DemandForecastServiceImpl implements DemandForecastService {
     private final VehicleService vehicleService;
     private final DailyForecastService dailyForecastService;
     private final AiModelProvider aiModelProvider;
+    private final DispatchSuggestionService dispatchSuggestionService;
 
     /** 历史订单聚合窗口天数（默认 30，开发演示可在 application.yml 配小） */
     @Value("${dispatch.historical-days:30}")
     private int historicalDays;
+
+    /** 每辆可调度车在每个时段预计承载的订单数 */
+    @Value("${dispatch.vehicle-capacity:15}")
+    private int vehicleCapacity;
 
     @Override
     public DemandForecastResponse generate(DemandForecastGenerateRequest request) {
@@ -79,6 +88,7 @@ public class DemandForecastServiceImpl implements DemandForecastService {
         response.setTimeRange(request.getTimeRange());
         response.setCurrentIdleVehicles(currentIdle);
 
+        Map<String, DailyForecast> areaToForecast = new HashMap<>();
         if (result != null && result.getForecasts() != null) {
             String weatherSummary = request.getExternalFactors() == null || request.getExternalFactors().isEmpty()
                     ? null
@@ -95,8 +105,30 @@ public class DemandForecastServiceImpl implements DemandForecastService {
                 daily.setPredictionReason(forecast.getReason());
                 daily.setWeatherSummary(weatherSummary);
                 dailyForecastService.save(daily);
+                areaToForecast.put(forecast.getArea(), daily);
                 response.getForecasts().add(daily);
             }
+        }
+
+        // 调度建议：规则计算 + 落库。先取代旧的 PENDING，避免重复生成堆积。
+        dispatchSuggestionService.supersedePending(request.getTargetDate(), request.getTimeRange());
+        List<DispatchRuleSuggestion> ruleSuggestions = DispatchRuleEngine.compute(
+                result == null ? List.of() : result.getForecasts(),
+                currentIdle,
+                vehicleCapacity);
+        for (DispatchRuleSuggestion rs : ruleSuggestions) {
+            DailyForecast toForecast = areaToForecast.get(rs.getToArea());
+            DispatchSuggestion suggestion = new DispatchSuggestion();
+            suggestion.setForecastId(toForecast == null ? null : toForecast.getId());
+            suggestion.setTargetDate(request.getTargetDate());
+            suggestion.setTimeRange(request.getTimeRange());
+            suggestion.setFromArea(rs.getFromArea());
+            suggestion.setToArea(rs.getToArea());
+            suggestion.setVehicleCount(rs.getVehicleCount());
+            suggestion.setReason(rs.getReason());
+            suggestion.setStatus("PENDING");
+            dispatchSuggestionService.save(suggestion);
+            response.getSuggestions().add(suggestion);
         }
 
         return response;

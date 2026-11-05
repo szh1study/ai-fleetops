@@ -1,6 +1,7 @@
 package com.aifleetops.ai.dto;
 
 import com.aifleetops.entity.DailyForecast;
+import com.aifleetops.entity.DispatchSuggestion;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -11,10 +12,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 需求预测生成接口的响应（V0.4.1）。
+ * 需求预测生成接口的响应（V0.4）。
  * <p>
- * 返回已落库的预测行 + 各区域当前可调度车辆数，供前端做「预测 vs 现状」对比。
- * V0.4.2 再补充 dispatch_suggestions。
+ * 返回已落库的预测行 + 各区域当前可调度车辆数 + 规则计算出的调度建议。
  */
 @Data
 public class DemandForecastResponse implements Serializable {
@@ -30,4 +30,7 @@ public class DemandForecastResponse implements Serializable {
 
     /** 已落库的预测行（含 id） */
     private List<DailyForecast> forecasts = new ArrayList<>();
+
+    /** 已落库的调度建议（含 id） */
+    private List<DispatchSuggestion> suggestions = new ArrayList<>();
 }
