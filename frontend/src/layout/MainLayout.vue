@@ -29,6 +29,10 @@
           <el-icon><Tickets /></el-icon>
           <span>工单中心</span>
         </el-menu-item>
+        <el-menu-item index="/dispatch-forecast">
+          <el-icon><TrendCharts /></el-icon>
+          <span>需求预测</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
 
@@ -44,7 +48,7 @@
 </template>
 
 <script setup>
-import { Odometer, Van, Warning, Tickets } from '@element-plus/icons-vue'
+import { Odometer, Van, Warning, Tickets, TrendCharts } from '@element-plus/icons-vue'
 </script>
 
 <style scoped>

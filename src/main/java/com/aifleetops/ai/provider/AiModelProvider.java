@@ -1,5 +1,7 @@
 package com.aifleetops.ai.provider;
 
+import com.aifleetops.ai.dto.DemandForecastRequest;
+import com.aifleetops.ai.dto.DemandForecastResult;
 import com.aifleetops.ai.dto.IncidentAnalysisRequest;
 import com.aifleetops.ai.dto.IncidentAnalysisResult;
 
@@ -28,4 +30,12 @@ public interface AiModelProvider {
      * @return 结构化的异常分析结果
      */
     IncidentAnalysisResult analyzeIncident(IncidentAnalysisRequest request);
+
+    /**
+     * 预测各区域未来时段的订单需求。
+     *
+     * @param request 携带目标日期、时段、区域、历史均值与可调度车辆数的上下文
+     * @return 各区域订单量预测（不含调度建议，调度由规则计算）
+     */
+    DemandForecastResult predictDemand(DemandForecastRequest request);
 }

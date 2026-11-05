@@ -1,5 +1,7 @@
 package com.aifleetops.ai.provider.impl;
 
+import com.aifleetops.ai.dto.DemandForecastRequest;
+import com.aifleetops.ai.dto.DemandForecastResult;
 import com.aifleetops.ai.dto.IncidentAnalysisRequest;
 import com.aifleetops.ai.dto.IncidentAnalysisResult;
 import com.aifleetops.ai.provider.AiModelProvider;
@@ -40,5 +42,11 @@ public class NoopAiModelProvider implements AiModelProvider {
         log.warn("AI model is disabled; analyzeIncident should not be invoked. incidentId={}",
                 request == null ? null : request.getIncidentId());
         throw new IllegalStateException("AI Incident Copilot 当前未启用");
+    }
+
+    @Override
+    public DemandForecastResult predictDemand(DemandForecastRequest request) {
+        log.warn("AI model is disabled; predictDemand should not be invoked.");
+        throw new IllegalStateException("AI 需求预测当前未启用");
     }
 }

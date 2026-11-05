@@ -1,5 +1,7 @@
 package com.aifleetops.ai.provider.impl;
 
+import com.aifleetops.ai.dto.DemandForecastRequest;
+import com.aifleetops.ai.dto.DemandForecastResult;
 import com.aifleetops.ai.dto.IncidentAnalysisRequest;
 import com.aifleetops.ai.dto.IncidentAnalysisResult;
 import com.aifleetops.ai.provider.AiModelProvider;
@@ -42,6 +44,17 @@ public class SpringAiModelProvider implements AiModelProvider {
             8. 任何建议动作都只是 Copilot 建议，系统不会自动执行，必须人工确认后才会执行。
             """;
 
+    private static final String DEMAND_SYSTEM_PROMPT = """
+            你是 AI FleetOps 的 Demand Forecast Copilot，负责预测 Robotaxi 各区域未来时段的订单需求。
+            只能依据输入的历史均值与外部因素进行判断，不得虚构未提供的外部因素。
+
+            输出要求：
+            1. forecasts 只对输入 areas 中出现的区域各输出一项，不得新增区域。
+            2. predictedOrders 为非负整数，以 historicalAvg 为基准，结合 externalFactors 合理上调或下调。
+            3. reason 必须用中文，引用历史均值与给定的外部因素解释预测依据，不得虚构未提供的外部因素。
+            4. 不要输出任何调度建议；调度由后端规则计算。
+            """;
+
     private final ChatClient chatClient;
     private final String providerName;
 
@@ -76,6 +89,57 @@ public class SpringAiModelProvider implements AiModelProvider {
         log.info("AI incident analysis completed. incidentId={}, provider={}, riskLevel={}",
                 request.getIncidentId(), providerName, result.getRiskLevel());
         return result;
+    }
+
+    @Override
+    public DemandForecastResult predictDemand(DemandForecastRequest request) {
+        String userPrompt = buildDemandPrompt(request);
+
+        DemandForecastResult result = chatClient.prompt()
+                .system(DEMAND_SYSTEM_PROMPT)
+                .user(userPrompt)
+                .call()
+                .entity(DemandForecastResult.class);
+
+        normalizeDemandResult(result);
+        log.info("AI demand forecast completed. targetDate={}, timeRange={}, areas={}",
+                request.getTargetDate(), request.getTimeRange(), request.getAreas());
+        return result;
+    }
+
+    private String buildDemandPrompt(DemandForecastRequest request) {
+        return """
+                请预测以下区域在未来时段的订单需求：
+
+                目标日期：%s
+                时段：%s
+                区域：%s
+                外部因素：%s
+                历史同期平均订单：%s
+                当前各区域可调度车辆数：%s
+
+                请输出结构化 DemandForecastResult。
+                """.formatted(
+                value(request.getTargetDate()),
+                value(request.getTimeRange()),
+                request.getAreas(),
+                request.getExternalFactors(),
+                request.getHistoricalAvg(),
+                request.getCurrentIdleVehicles()
+        );
+    }
+
+    private void normalizeDemandResult(DemandForecastResult result) {
+        if (result == null) {
+            throw new IllegalStateException("AI 模型返回了空预测结果");
+        }
+        if (result.getForecasts() == null) {
+            result.setForecasts(List.of());
+        } else {
+            result.setForecasts(result.getForecasts().stream()
+                    .filter(f -> f != null && f.getArea() != null && f.getPredictedOrders() != null)
+                    .toList());
+        }
     }
 
     private String buildIncidentPrompt(IncidentAnalysisRequest request) {

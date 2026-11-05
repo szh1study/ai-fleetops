@@ -53,3 +53,7 @@ ai:
     # true：使用 SpringAiModelProvider；同时必须开启 spring.ai.model.chat 并配置真实模型连接信息。
     enabled: true
     provider: qwen
+
+# V0.4 需求预测 / 调度配置
+dispatch:
+  historical-days: 3   # 历史订单聚合窗口天数（开发演示用；生产建议 30）

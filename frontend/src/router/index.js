@@ -30,6 +30,12 @@ const routes = [
         name: 'WorkOrders',
         component: () => import('../views/WorkOrderCenter.vue'),
         meta: { title: '工单中心' }
+      },
+      {
+        path: 'dispatch-forecast',
+        name: 'DispatchForecast',
+        component: () => import('../views/DemandForecast.vue'),
+        meta: { title: '需求预测' }
       }
     ]
   }
