@@ -33,6 +33,10 @@
           <el-icon><TrendCharts /></el-icon>
           <span>需求预测</span>
         </el-menu-item>
+        <el-menu-item index="/operation-review">
+          <el-icon><DataAnalysis /></el-icon>
+          <span>运营复盘</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
 
@@ -48,7 +52,7 @@
 </template>
 
 <script setup>
-import { Odometer, Van, Warning, Tickets, TrendCharts } from '@element-plus/icons-vue'
+import { Odometer, Van, Warning, Tickets, TrendCharts, DataAnalysis } from '@element-plus/icons-vue'
 </script>
 
 <style scoped>

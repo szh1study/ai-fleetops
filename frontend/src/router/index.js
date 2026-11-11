@@ -36,6 +36,12 @@ const routes = [
         name: 'DispatchForecast',
         component: () => import('../views/DemandForecast.vue'),
         meta: { title: '需求预测' }
+      },
+      {
+        path: 'operation-review',
+        name: 'OperationReview',
+        component: () => import('../views/OperationReview.vue'),
+        meta: { title: '运营复盘' }
       }
     ]
   }
