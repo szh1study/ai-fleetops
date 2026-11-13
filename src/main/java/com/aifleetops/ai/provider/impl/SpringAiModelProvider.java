@@ -1,10 +1,13 @@
 package com.aifleetops.ai.provider.impl;
 
+import com.aifleetops.ai.dto.DailyReportRequest;
 import com.aifleetops.ai.dto.DemandForecastRequest;
 import com.aifleetops.ai.dto.DemandForecastResult;
 import com.aifleetops.ai.dto.IncidentAnalysisRequest;
 import com.aifleetops.ai.dto.IncidentAnalysisResult;
 import com.aifleetops.ai.provider.AiModelProvider;
+import com.aifleetops.dto.AiSuggestionAdoptionMetrics;
+import com.aifleetops.dto.IncidentEfficiencyMetrics;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,6 +15,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 基于 Spring AI ChatClient 的真实模型 Provider。
@@ -53,6 +57,17 @@ public class SpringAiModelProvider implements AiModelProvider {
             2. predictedOrders 为非负整数，以 historicalAvg 为基准，结合 externalFactors 合理上调或下调。
             3. reason 必须用中文，引用历史均值与给定的外部因素解释预测依据，不得虚构未提供的外部因素。
             4. 不要输出任何调度建议；调度由后端规则计算。
+            """;
+
+    private static final String DAILY_REPORT_SYSTEM_PROMPT = """
+            你是 AI FleetOps 的运营日报助手，负责把当天的运营复盘指标总结成一段简洁中文日报。
+            只能依据输入的指标生成，不得虚构输入中未体现的数据。
+
+            输出要求：
+            1. 用简洁中文输出，控制在 200 字以内。
+            2. 指出最重要的 1-2 个结论（例如哪个区域预测偏差最大、调度是否有效）。
+            3. 对缺失或暂无数据的指标，用「暂无数据」一带而过，不要编造。
+            4. 只输出日报正文本身，不要加标题、编号或 Markdown 标记。
             """;
 
     private final ChatClient chatClient;
@@ -105,6 +120,73 @@ public class SpringAiModelProvider implements AiModelProvider {
         log.info("AI demand forecast completed. targetDate={}, timeRange={}, areas={}",
                 request.getTargetDate(), request.getTimeRange(), request.getAreas());
         return result;
+    }
+
+    @Override
+    public String generateDailyReport(DailyReportRequest request) {
+        String userPrompt = buildDailyReportPrompt(request);
+
+        String content = chatClient.prompt()
+                .system(DAILY_REPORT_SYSTEM_PROMPT)
+                .user(userPrompt)
+                .call()
+                .content();
+
+        if (content == null || content.isBlank()) {
+            throw new IllegalStateException("AI 模型返回了空日报");
+        }
+        log.info("AI daily report generated. reportDate={}, provider={}",
+                request.getReportDate(), providerName);
+        return content.trim();
+    }
+
+    private String buildDailyReportPrompt(DailyReportRequest request) {
+        String forecastLines = request.getForecastReviews() == null || request.getForecastReviews().isEmpty()
+                ? "暂无预测复盘数据"
+                : request.getForecastReviews().stream()
+                        .map(f -> String.format("%s %s：预测 %s / 实际 %s（偏差 %s）",
+                                value(f.getArea()), value(f.getTimeRange()),
+                                value(f.getPredictedOrders()), value(f.getActualOrders()),
+                                f.getDeviation() == null ? "-" : f.getDeviation() + "%"))
+                        .collect(Collectors.joining("；"));
+
+        String dispatchLines = request.getDispatchReviews() == null || request.getDispatchReviews().isEmpty()
+                ? "暂无调度建议"
+                : request.getDispatchReviews().stream()
+                        .map(d -> String.format("从 %s 调 %s 辆到 %s（%s）",
+                                value(d.getFromArea()), value(d.getVehicleCount()),
+                                value(d.getToArea()), value(d.getStatus())))
+                        .collect(Collectors.joining("；"));
+
+        IncidentEfficiencyMetrics im = request.getIncidentMetrics();
+        AiSuggestionAdoptionMetrics aa = request.getAiAdoption();
+
+        return """
+                请生成以下日期的运营日报：
+
+                复盘日期：%s
+
+                [预测偏差] 整体偏差 %s
+                %s
+
+                [调度效果] %s
+
+                [异常时效] 当日解决 %s 条，平均解决耗时 %s 分钟
+                [AI 建议采纳率] 累计采纳率 %s，已执行 %s / 已拒绝 %s / 待处理 %s
+
+                请输出日报正文。
+                """.formatted(
+                value(request.getReportDate()),
+                request.getOverallDeviation() == null ? "-" : request.getOverallDeviation() + "%",
+                forecastLines,
+                dispatchLines,
+                value(im == null ? null : im.getResolvedCount()),
+                value(im == null ? null : im.getAvgResolutionMinutes()),
+                value(aa == null ? null : aa.getAdoptionRate()),
+                value(aa == null ? null : aa.getExecuted()),
+                value(aa == null ? null : aa.getRejected()),
+                value(aa == null ? null : aa.getPending())
+        );
     }
 
     private String buildDemandPrompt(DemandForecastRequest request) {

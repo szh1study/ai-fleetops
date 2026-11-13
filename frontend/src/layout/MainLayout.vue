@@ -37,6 +37,10 @@
           <el-icon><DataAnalysis /></el-icon>
           <span>运营复盘</span>
         </el-menu-item>
+        <el-menu-item index="/ai-assistant">
+          <el-icon><ChatDotRound /></el-icon>
+          <span>AI 助手</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
 
@@ -52,7 +56,7 @@
 </template>
 
 <script setup>
-import { Odometer, Van, Warning, Tickets, TrendCharts, DataAnalysis } from '@element-plus/icons-vue'
+import { Odometer, Van, Warning, Tickets, TrendCharts, DataAnalysis, ChatDotRound } from '@element-plus/icons-vue'
 </script>
 
 <style scoped>

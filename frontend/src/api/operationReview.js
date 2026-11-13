@@ -15,3 +15,7 @@ export function getIncidentEfficiency(date) {
 export function getAiAdoption(date) {
   return request.get('/operation-metrics/ai-adoption', { params: date ? { date } : {} })
 }
+
+export function generateDailyReport(date) {
+  return request.get('/operation-reports/daily', { params: { date } })
+}

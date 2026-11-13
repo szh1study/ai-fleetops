@@ -1,5 +1,6 @@
 package com.aifleetops.ai.provider;
 
+import com.aifleetops.ai.dto.DailyReportRequest;
 import com.aifleetops.ai.dto.DemandForecastRequest;
 import com.aifleetops.ai.dto.DemandForecastResult;
 import com.aifleetops.ai.dto.IncidentAnalysisRequest;
@@ -38,4 +39,12 @@ public interface AiModelProvider {
      * @return 各区域订单量预测（不含调度建议，调度由规则计算）
      */
     DemandForecastResult predictDemand(DemandForecastRequest request);
+
+    /**
+     * 生成某天的运营日报文字摘要。
+     *
+     * @param request 携带当日复盘指标（预测偏差、调度效果、异常时效、AI 采纳率）
+     * @return 自然语言日报正文
+     */
+    String generateDailyReport(DailyReportRequest request);
 }

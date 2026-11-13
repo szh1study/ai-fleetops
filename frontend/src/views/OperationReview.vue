@@ -154,6 +154,24 @@
         </el-table-column>
       </el-table>
     </el-card>
+
+    <!-- 运营日报 -->
+    <el-card shadow="never">
+      <template #header>
+        <div class="card-header-row">
+          <span class="card-title">运营日报</span>
+          <el-button type="primary" size="small" :loading="reportLoading" @click="handleGenerateReport">
+            生成日报
+          </el-button>
+        </div>
+      </template>
+      <div v-if="report" class="report-body">
+        <el-tag v-if="report.aiGenerated" type="success" size="small" effect="plain">AI 生成</el-tag>
+        <el-tag v-else type="info" size="small" effect="plain">模板生成</el-tag>
+        <p class="report-summary">{{ report.summary }}</p>
+      </div>
+      <el-empty v-else description="点击「生成日报」生成当天运营摘要" />
+    </el-card>
   </div>
 </template>
 
@@ -164,7 +182,8 @@ import {
   listForecastReview,
   listDispatchReview,
   getIncidentEfficiency,
-  getAiAdoption
+  getAiAdoption,
+  generateDailyReport
 } from '../api/operationReview'
 import { areaLabel, severityLabel, suggestionTypeLabel } from '../utils/statusMap'
 
@@ -173,6 +192,8 @@ const forecastReview = ref([])
 const dispatchReview = ref([])
 const incidentEfficiency = ref(null)
 const aiAdoption = ref(null)
+const report = ref(null)
+const reportLoading = ref(false)
 
 const forecastChartRef = ref(null)
 const adoptionChartRef = ref(null)
@@ -187,6 +208,7 @@ function formatToday() {
 }
 
 async function loadAll() {
+  report.value = null
   const d = date.value
   try {
     const [fr, dr, ie, aa] = await Promise.all([
@@ -205,6 +227,18 @@ async function loadAll() {
   await nextTick()
   renderForecastChart()
   renderAdoptionChart()
+}
+
+async function handleGenerateReport() {
+  reportLoading.value = true
+  try {
+    const res = await generateDailyReport(date.value)
+    report.value = res.data
+  } catch (e) {
+    // 错误提示由 request 拦截器统一处理
+  } finally {
+    reportLoading.value = false
+  }
 }
 
 function renderForecastChart() {
@@ -311,6 +345,21 @@ onBeforeUnmount(() => {
   font-size: 14px;
   font-weight: 600;
   color: #303133;
+}
+.card-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.report-body {
+  margin-top: 4px;
+}
+.report-summary {
+  margin-top: 12px;
+  font-size: 14px;
+  line-height: 1.8;
+  color: #303133;
+  white-space: pre-wrap;
 }
 .filter-card .filter-row {
   display: flex;
