@@ -1,10 +1,14 @@
 package com.aifleetops.ai.tool;
 
+import com.aifleetops.ai.service.DispatchSuggestionService;
 import com.aifleetops.entity.DailyForecast;
+import com.aifleetops.entity.DispatchSuggestion;
 import com.aifleetops.entity.Incident;
+import com.aifleetops.entity.KnowledgeDocument;
 import com.aifleetops.entity.Vehicle;
 import com.aifleetops.service.DailyForecastService;
 import com.aifleetops.service.IncidentService;
+import com.aifleetops.service.KnowledgeDocumentService;
 import com.aifleetops.service.VehicleService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -20,10 +24,10 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * AI 助手只读工具集（V0.6.1）。
+ * AI 助手工具集（V0.6.1 / V0.6.2）。
  * <p>
  * 方法用 Spring AI 的 {@code @Tool} 标注，注册到 ChatClient 后由模型在需要时调用。
- * 所有工具只读，不修改任何业务数据。
+ * 查询类工具只读；createDispatchSuggestion 仅写入 PENDING 状态的调度建议，需人工确认后才会真正执行。
  */
 @Component
 @RequiredArgsConstructor
@@ -32,6 +36,8 @@ public class FleetOpsTools {
     private final VehicleService vehicleService;
     private final IncidentService incidentService;
     private final DailyForecastService dailyForecastService;
+    private final KnowledgeDocumentService knowledgeDocumentService;
+    private final DispatchSuggestionService dispatchSuggestionService;
 
     @Tool(name = "queryVehicles", description = """
             查询车辆的当前状态与分布。当用户问“今天车怎么样”“某区域有多少车”“空闲车有多少”时调用。
@@ -136,6 +142,62 @@ public class FleetOpsTools {
         String hint = "小雨".equals(weather) ? "；雨天晚高峰用车需求通常上升" : "";
         return String.format("%s %s：%s，%d℃（V0.6.1 模拟天气数据，未接真实 API）%s",
                 city, date, weather, temp, hint);
+    }
+
+    @Tool(name = "queryKnowledge", description = """
+            查询内部运营知识库。当用户问“怎么做”“有什么流程”“标准是什么”“有什么注意事项”等需要内部资料的问题时调用。
+            返回相关知识文档的标题、正文与来源，供组织回答并引用出处。
+            查不到时返回“知识库未找到相关内容”，不要编造。
+            """)
+    public String queryKnowledge(
+            @ToolParam(description = "用户的问题，尽量保留原句，如 雨雾天气行车要注意什么") String question) {
+        List<KnowledgeDocument> docs = knowledgeDocumentService.search(question);
+        if (docs.isEmpty()) {
+            return "知识库未找到相关内容。";
+        }
+        return docs.stream()
+                .map(d -> String.format("【%s】（来源：%s）\n%s",
+                        d.getTitle(),
+                        d.getSource() == null || d.getSource().isBlank() ? "内部资料" : d.getSource(),
+                        d.getContent() == null ? "" : d.getContent()))
+                .collect(Collectors.joining("\n\n"));
+    }
+
+    @Tool(name = "createDispatchSuggestion", description = """
+            创建一条车辆调度建议（PENDING 状态，需人工确认后才执行，不会自动调动车辆）。
+            当用户要求“把车从 A 调到 B”“某区域缺车需要调入”时调用。
+            只创建建议记录，不修改任何车辆状态，也不真正执行调度。
+            """)
+    public String createDispatchSuggestion(
+            @ToolParam(description = "调出区域，只能是 海淀区、朝阳区、西城区 之一，如 海淀区") String fromArea,
+            @ToolParam(description = "调入区域，只能是 海淀区、朝阳区、西城区 之一，如 朝阳区") String toArea,
+            @ToolParam(description = "调动车辆数，正整数") int vehicleCount,
+            @ToolParam(description = "目标日期，格式 yyyy-MM-dd，如 2026-11-13") String targetDate,
+            @ToolParam(description = "时段，格式 HH:mm-HH:mm，如 20:00-24:00") String timeRange,
+            @ToolParam(description = "调度原因，说明为什么需要这样调度") String reason) {
+        LocalDate date;
+        try {
+            date = LocalDate.parse(targetDate);
+        } catch (RuntimeException e) {
+            return "目标日期格式应为 yyyy-MM-dd，如 2026-11-13。";
+        }
+        if (vehicleCount <= 0) {
+            return "调动车辆数应为正整数。";
+        }
+
+        DispatchSuggestion suggestion = new DispatchSuggestion();
+        suggestion.setFromArea(fromArea);
+        suggestion.setToArea(toArea);
+        suggestion.setVehicleCount(vehicleCount);
+        suggestion.setTargetDate(date);
+        suggestion.setTimeRange(timeRange);
+        suggestion.setReason(reason);
+        suggestion.setStatus("PENDING");
+        dispatchSuggestionService.save(suggestion);
+
+        return String.format(
+                "已创建调度建议（PENDING，待人工确认）：从 %s 调 %d 辆车到 %s，%s %s。请前往「需求预测」页面确认执行。",
+                fromArea, vehicleCount, toArea, targetDate, timeRange);
     }
 
     private boolean hasText(String s) {
